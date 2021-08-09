@@ -135,7 +135,7 @@ public class CommandManager implements TabCompleter, CommandExecutor {
                 CommandContainer.builder()
                         .prefix("price")
                         .permission("quickshop.create.changeprice")
-                        .executor(new SubCommand_Price(plugin))
+                        .executor(new SubCommand_Price())
                         .build());
         registerCmd(
                 CommandContainer.builder()
@@ -214,12 +214,6 @@ public class CommandManager implements TabCompleter, CommandExecutor {
                         .build());
         registerCmd(
                 CommandContainer.builder()
-                        .prefix("paste")
-                        .permission("quickshop.paste")
-                        .executor(new SubCommand_Paste(plugin))
-                        .build());
-        registerCmd(
-                CommandContainer.builder()
                         .prefix("staff")
                         .permission("quickshop.staff")
                         .executor(new SubCommand_Staff(plugin))
@@ -230,13 +224,6 @@ public class CommandManager implements TabCompleter, CommandExecutor {
                         .permission("quickshop.create.cmd")
                         .permission("quickshop.create.sell")
                         .executor(new SubCommand_Create(plugin))
-                        .build());
-        registerCmd(
-                CommandContainer.builder()
-                        .prefix("update")
-                        .hidden(true)
-                        .permission("quickshop.alerts")
-                        .executor(new SubCommand_Update(plugin))
                         .build());
         registerCmd(
                 CommandContainer.builder()

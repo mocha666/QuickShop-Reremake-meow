@@ -53,18 +53,18 @@ public class ChatSheetPrinter {
     }
 
     public void printFooter() {
-        MsgUtil.sendDirectMessage(p, ChatColor.DARK_PURPLE + MsgUtil.getMessage("tableformat.full_line", p));
+        MsgUtil.sendDirectMessage(p, MsgUtil.getMessage("tableformat.full_line", p));
     }
 
     public void printHeader() {
-        MsgUtil.sendDirectMessage(p, ChatColor.DARK_PURPLE + MsgUtil.getMessage("tableformat.full_line", p));
+        MsgUtil.sendDirectMessage(p, MsgUtil.getMessage("tableformat.full_line", p));
     }
 
     public void printLine(@NotNull String text) {
         String[] texts = text.split("\n");
         for (String str : texts) {
             if (!str.isEmpty()) {
-                MsgUtil.sendDirectMessage(p, ChatColor.DARK_PURPLE + MsgUtil.getMessage("tableformat.left_begin", p) + str);
+                MsgUtil.sendDirectMessage(p, MsgUtil.getMessage("tableformat.left_begin", p) + str);
             }
         }
     }

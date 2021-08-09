@@ -28,7 +28,7 @@ import org.bukkit.event.Listener;
 import org.jetbrains.annotations.NotNull;
 import org.maxgamer.quickshop.QuickShop;
 import org.maxgamer.quickshop.event.*;
-import org.maxgamer.quickshop.shop.ShopType;
+import org.maxgamer.quickshop.shop.PurchaseAction;
 import org.maxgamer.quickshop.util.MsgUtil;
 import org.maxgamer.quickshop.util.Util;
 
@@ -120,7 +120,7 @@ public class InternalListener implements Listener {
     public void shopPurchase(ShopSuccessPurchaseEvent event) {
         Player creator = plugin.getServer().getPlayer(event.getPurchaser());
         if (loggingAction) {
-            if (event.getShop().getShopType() == ShopType.BUYING) {
+            if (event.getPurchaseAction() == PurchaseAction.BUY) {
                 plugin.log(
                         "Player "
                                 + (creator != null ? creator.getName() : event.getPurchaser())
@@ -138,7 +138,7 @@ public class InternalListener implements Listener {
                                 + event.getTax()
                                 + " tax).");
             }
-            if (event.getShop().getShopType() == ShopType.SELLING) {
+            if (event.getPurchaseAction() == PurchaseAction.SELL) {
                 plugin.log(
                         "Player "
                                 + (creator != null ? creator.getName() : event.getPurchaser())

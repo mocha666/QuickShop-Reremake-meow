@@ -336,7 +336,7 @@ public class MojangGameLanguageImpl extends BukkitGameLanguageImpl implements Ga
                 plugin.getLogger().info("Success! The game assets now up-to-date :)");
                 plugin.getLogger().info("Now you can execute [/qs reset lang] command to regenerate files with localized.");
             } catch (Exception e) {
-                plugin.getSentryErrorReporter().ignoreThrow();
+
                 plugin.getLogger().log(Level.WARNING, "Something going wrong when loading game translation assets", e);
             }
         }

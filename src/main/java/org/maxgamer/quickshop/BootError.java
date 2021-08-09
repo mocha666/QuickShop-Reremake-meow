@@ -29,7 +29,7 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 /**
- * BootError class contains print errors on /qs command when plugin failed launched.
+ * BootError class contains print errors on "/qs command when plugin failed launched.
  *
  * @author Ghost_chu
  */

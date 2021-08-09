@@ -34,6 +34,10 @@ import java.util.UUID;
 @AllArgsConstructor
 public class SubCommand_SilentPreview implements CommandHandler<Player> {
 
+    public static SubCommand_SilentPreview instance;
+    {
+        instance = this;
+    }
     private final QuickShop plugin;
 
     @Override

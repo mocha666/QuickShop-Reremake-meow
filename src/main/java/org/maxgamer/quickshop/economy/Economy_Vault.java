@@ -127,7 +127,7 @@ public class Economy_Vault implements EconomyCore, Listener {
         try {
             return Objects.requireNonNull(this.vault).depositPlayer(trader, amount).transactionSuccess();
         } catch (Exception t) {
-            plugin.getSentryErrorReporter().ignoreThrow();
+
             if (trader.getName() == null) {
                 plugin.getLogger().warning("Deposit failed and player name is NULL, Player uuid: " + trader.getUniqueId() + ". Provider (" + getProviderName() + ")");
                 return false;
@@ -183,7 +183,7 @@ public class Economy_Vault implements EconomyCore, Listener {
         try {
             return Objects.requireNonNull(this.vault).getBalance(player);
         } catch (Exception t) {
-            plugin.getSentryErrorReporter().ignoreThrow();
+
             plugin.getLogger().log(Level.WARNING, String.format(errorMsg, getProviderName()), t);
             return 0.0;
         }
@@ -208,7 +208,7 @@ public class Economy_Vault implements EconomyCore, Listener {
             }
             return Objects.requireNonNull(this.vault).withdrawPlayer(trader, amount).transactionSuccess();
         } catch (Exception t) {
-            plugin.getSentryErrorReporter().ignoreThrow();
+
             if (trader.getName() == null) {
                 plugin.getLogger().warning("Withdraw failed and player name is NULL, Player uuid: " + trader.getUniqueId() + ", Provider: " + getProviderName());
                 return false;

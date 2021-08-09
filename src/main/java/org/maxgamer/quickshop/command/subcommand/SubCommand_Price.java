@@ -41,10 +41,10 @@ import java.util.logging.Level;
 @AllArgsConstructor
 public class SubCommand_Price implements CommandHandler<Player> {
 
-    private final QuickShop plugin;
+    private static final QuickShop plugin = QuickShop.getInstance();
 
-    @Override
-    public void onCommand(@NotNull Player sender, @NotNull String commandLabel, @NotNull String[] cmdArg) {
+    public static void call(@NotNull Player sender, @NotNull String commandLabel, PriceType type, @NotNull String[] cmdArg) {
+
         if (cmdArg.length < 1) {
             MsgUtil.sendMessage(sender, "no-price-given");
             return;
@@ -98,8 +98,11 @@ public class SubCommand_Price implements CommandHandler<Player> {
                 continue;
             }
 
-            if (shop.getPrice() == price) {
+            if (type == PriceType.BUY_OR_SELL && shop.getPrice() == price) {
                 // Stop here if there isn't a price change
+                MsgUtil.sendMessage(sender, "no-price-change");
+                return;
+            } else if (shop.getSellPrice() == price) {
                 MsgUtil.sendMessage(sender, "no-price-change");
                 return;
             }
@@ -145,10 +148,21 @@ public class SubCommand_Price implements CommandHandler<Player> {
                 }
             }
             // Update the shop
-            shop.setPrice(price);
+            if (type == PriceType.BUY_OR_SELL) {
+                shop.setPrice(price);
+            } else {
+                shop.setSellPrice(price);
+            }
             shop.update();
-            MsgUtil.sendMessage(sender,
-                    "price-is-now", plugin.getEconomy().format(shop.getPrice(), Objects.requireNonNull(shop.getLocation().getWorld()), shop.getCurrency()));
+
+            if (type == PriceType.BUY_OR_SELL) {
+                MsgUtil.sendMessage(sender,
+                        "price-buy-or-sell-is-now", plugin.getEconomy().format(shop.getPrice(), Objects.requireNonNull(shop.getLocation().getWorld()), shop.getCurrency()));
+            } else {
+                MsgUtil.sendMessage(sender,
+                        "price-sell-is-now", plugin.getEconomy().format(shop.getPrice(), Objects.requireNonNull(shop.getLocation().getWorld()), shop.getCurrency()));
+            }
+
             // Chest shops can be double shops.
             if (!(shop instanceof ContainerShop)) {
                 return;
@@ -180,6 +194,16 @@ public class SubCommand_Price implements CommandHandler<Player> {
             return;
         }
         MsgUtil.sendMessage(sender, "not-looking-at-shop");
+    }
+
+    @Override
+    public void onCommand(@NotNull Player sender, @NotNull String commandLabel, @NotNull String[] cmdArg) {
+        call(sender, commandLabel, PriceType.BUY_OR_SELL, cmdArg);
+    }
+
+    public enum PriceType {
+        BUY_OR_SELL,
+        SELL
     }
 
     @NotNull

@@ -25,6 +25,7 @@ import org.bukkit.event.Cancellable;
 import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.maxgamer.quickshop.shop.PurchaseAction;
 import org.maxgamer.quickshop.shop.Shop;
 
 import java.util.UUID;
@@ -45,6 +46,7 @@ public class ShopSuccessPurchaseEvent extends QSEvent implements Cancellable {
     @Nullable
     @Deprecated
     private final Player player;
+    private final PurchaseAction purchaseAction;
 
     @NotNull
     private final Inventory purchaserInventory;
@@ -68,9 +70,10 @@ public class ShopSuccessPurchaseEvent extends QSEvent implements Cancellable {
      * @param total              The money in this purchase
      */
     public ShopSuccessPurchaseEvent(
-            @NotNull Shop shop, @NotNull UUID purchaser, @NotNull Inventory purchaserInventory, int amount, double total, double tax) {
+            @NotNull Shop shop, @NotNull UUID purchaser, @NotNull PurchaseAction purchaseAction, @NotNull Inventory purchaserInventory, int amount, double total, double tax) {
         this.shop = shop;
         this.purchaser = purchaser;
+        this.purchaseAction = purchaseAction;
         this.purchaserInventory = purchaserInventory;
         this.amount = amount * shop.getItem().getAmount();
         this.tax = tax;
@@ -145,6 +148,12 @@ public class ShopSuccessPurchaseEvent extends QSEvent implements Cancellable {
     public @Nullable Player getPlayer() {
         return this.player;
     }
+
+
+    public PurchaseAction getPurchaseAction() {
+        return purchaseAction;
+    }
+
 
     /**
      * Gets the inventory of purchaser (the item will put to)

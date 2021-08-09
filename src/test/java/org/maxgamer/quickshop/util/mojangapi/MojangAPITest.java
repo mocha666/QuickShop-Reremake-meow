@@ -20,12 +20,11 @@
 package org.maxgamer.quickshop.util.mojangapi;
 
 import org.junit.Assert;
-import org.junit.Test;
 
 import java.util.Optional;
 
 public class MojangAPITest {
-    @Test
+    // @Test
     public void testMojangMetaApi() {
         MojangAPI api = new MojangAPI();
         Optional<String> metaData = api.getMetaAPI("1.16.5").get();
@@ -33,7 +32,7 @@ public class MojangAPITest {
         Assert.assertFalse(metaData.get().isEmpty());
     }
 
-    @Test
+    // @Test
     public void testMojangAssetsApi() {
         MojangAPI api = new MojangAPI();
         MojangAPI.AssetsAPI assetsAPI = api.getAssetsAPI("1.16.5");

@@ -106,6 +106,7 @@ public class ShopLoader {
                         new ContainerShop(plugin,
                                 data.getLocation(),
                                 data.getPrice(),
+                                data.getSellPrice(),
                                 data.getItem(),
                                 data.getModerators(),
                                 data.isUnlimited(),
@@ -298,6 +299,7 @@ public class ShopLoader {
                         new ContainerShop(plugin,
                                 data.getLocation(),
                                 data.getPrice(),
+                                data.getSellPrice(),
                                 data.getItem(),
                                 data.getModerators(),
                                 data.isUnlimited(),
@@ -357,6 +359,8 @@ public class ShopLoader {
 
         private double price;
 
+        private double sellPrice;
+
         private int type;
 
         private boolean unlimited;
@@ -379,6 +383,7 @@ public class ShopLoader {
             this.item = rs.getString("itemConfig");
             this.moderators = rs.getString("owner");
             this.price = rs.getDouble("price");
+            this.sellPrice = rs.getDouble("sellPrice");
             this.type = rs.getInt("type");
             this.unlimited = rs.getBoolean("unlimited");
             this.extra = rs.getString("extra");
@@ -422,6 +427,8 @@ public class ShopLoader {
 
         private double price;
 
+        private double sellPrice;
+
         private ShopType type;
 
         private boolean unlimited;
@@ -446,6 +453,7 @@ public class ShopLoader {
                 this.world = plugin.getServer().getWorld(origin.getWorld());
                 this.location = new Location(world, x, y, z);
                 this.price = origin.getPrice();
+                this.sellPrice = origin.getSellPrice();
                 this.unlimited = origin.isUnlimited();
                 this.moderators = deserializeModerator(origin.getModerators(), needUpdate);
                 this.type = ShopType.fromID(origin.getType());

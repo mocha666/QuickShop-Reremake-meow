@@ -191,7 +191,7 @@ public class DatabaseManager {
                 }
 
             } catch (SQLException sqle) {
-                plugin.getSentryErrorReporter().ignoreThrow();
+
                 this.plugin
                         .getLogger()
                         .log(Level.WARNING, "Database connection may lost, we are trying reconnecting, if this message appear too many times, you should check your database file(sqlite) and internet connection(mysql).", sqle);

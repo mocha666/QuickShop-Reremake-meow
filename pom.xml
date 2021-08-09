@@ -21,14 +21,16 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.maxgamer</groupId>
+    <groupId>net.wdsj.bukkit</groupId>
     <artifactId>QuickShop</artifactId>
 
     <properties>
         <pluginver>4.0.9.7</pluginver>
-        <package>org.maxgamer.quickshop</package>
+        <package>net.wdsj.bukkit.quickshop</package>
         <developer>Ghost-chu</developer>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <kotlin.version>1.5.21</kotlin.version>
+        <java.version>8</java.version>
     </properties>
 
     <version>${mvn.build.ver}</version>
@@ -46,14 +48,17 @@
         <system>GitHub Issues</system>
     </issueManagement>
 
+
     <distributionManagement>
         <repository>
-            <id>codemc-releases</id>
-            <url>https://repo.codemc.io/repository/maven-releases/</url>
+            <id>nexus-releases</id>
+            <name>Release Repository</name>
+            <url>${ReleaseRepository}</url>
         </repository>
         <snapshotRepository>
-            <id>codemc-snapshots</id>
-            <url>https://repo.codemc.io/repository/maven-snapshots/</url>
+            <id>nexus-snapshots</id>
+            <name>Snapshot Repository</name>
+            <url>${SnapshotRepository}</url>
         </snapshotRepository>
     </distributionManagement>
 
@@ -94,21 +99,77 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.2.0</version>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <version>${kotlin.version}</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>test-compile</id>
+                        <phase>process-test-sources</phase>
+                        <goals>
+                            <goal>test-compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <compilerPlugins>
+                        <plugin>lombok</plugin>
+                    </compilerPlugins>
+                    <sourceDirs>
+                        <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
+                        <sourceDir>${project.basedir}/src/main/java</sourceDir>
+                    </sourceDirs>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-lombok</artifactId>
+                        <version>${kotlin.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                        <version>1.18.20</version>
+                        <!--       <scope>provided</scope>-->
+                    </dependency>
+                </dependencies>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                    <encoding>UTF-8</encoding>
-                    <!--Use this comments args when compiler is NullPointerException-->
-                    <!--<forceJavacCompilerUse>true</forceJavacCompilerUse>-->
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.2.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -230,32 +291,32 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <encoding>UTF-8</encoding>
-                    <excludePackageNames>org.maxgamer.quickshop.nonquickshopstuff.*</excludePackageNames>
-                    <!--<aggregate>true</aggregate>
-                    <charmvnset>UTF-8</charmvnset>
-                    <docencoding>UTF-8</docencoding>-->
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                        <configuration>
-                            <failOnError>false</failOnError>
-                            <additionalJOption>-Xdoclint:none</additionalJOption>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+            <!--     <plugin>
+                     <groupId>org.apache.maven.plugins</groupId>
+                     <artifactId>maven-javadoc-plugin</artifactId>
+                     <version>3.3.0</version>
+                     <configuration>
+                         <encoding>UTF-8</encoding>
+                         <excludePackageNames>org.maxgamer.quickshop.nonquickshopstuff.*</excludePackageNames>
+                         &lt;!&ndash;<aggregate>true</aggregate>
+                         <charmvnset>UTF-8</charmvnset>
+                         <docencoding>UTF-8</docencoding>&ndash;&gt;
+                     </configuration>
+                     <executions>
+                         <execution>
+                             <id>attach-javadocs</id>
+                             <goals>
+                                 <goal>jar</goal>
+                             </goals>
+                             <configuration>
+                                 <failOnError>false</failOnError>
+                                 <additionalJOption>-Xdoclint:none</additionalJOption>
+                             </configuration>
+                         </execution>
+                     </executions>
+                 </plugin>-->
 
-            <plugin>
+        <!--    <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jarsigner-plugin</artifactId>
                 <version>3.0.0</version>
@@ -272,12 +333,12 @@
                     <archive>${project.basedir}/target/${artifactId}.jar</archive>
                     <keystore>${project.basedir}/keystore.jks</keystore>
                     <alias>selfsigned</alias>
-                    <!--suppress UnresolvedMavenProperty -->
+                    &lt;!&ndash;suppress UnresolvedMavenProperty &ndash;&gt;
                     <storepass>${env.quickshop-signer-pwd}</storepass>
-                    <!--suppress UnresolvedMavenProperty -->
+                    &lt;!&ndash;suppress UnresolvedMavenProperty &ndash;&gt;
                     <keypass>${env.quickshop-signer-pwd}</keypass>
                 </configuration>
-            </plugin>
+            </plugin>-->
             <!--            <plugin>-->
             <!--                &lt;!&ndash; https://mvnrepository.com/artifact/org.codehaus.mojo/exec-maven-plugin &ndash;&gt;-->
             <!--                <groupId>org.codehaus.mojo</groupId>-->
@@ -415,6 +476,24 @@
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>net.wdsj.mcserver</groupId>
+            <artifactId>WdsjGui</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.wdsj.mcserver</groupId>
+            <artifactId>WdsjServerCore</artifactId>
+            <version>2.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.wdsj.mcserver</groupId>
+            <artifactId>WdsjLib</artifactId>
+            <version>1.0</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
@@ -943,6 +1022,17 @@
             <artifactId>advanced-region-market</artifactId>
             <version>3.3.4</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib-jdk8</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

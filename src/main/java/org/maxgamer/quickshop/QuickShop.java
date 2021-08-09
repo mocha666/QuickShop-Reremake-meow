@@ -26,6 +26,8 @@ import lombok.Getter;
 import lombok.Setter;
 import me.minebuilders.clearlag.Clearlag;
 import me.minebuilders.clearlag.listeners.ItemMergeListener;
+import net.wdsj.servercore.WdsjServerAPI;
+import net.wdsj.servercore.common.command.CommandProxyBuilder;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -50,6 +52,7 @@ import org.maxgamer.quickshop.chat.QuickChat;
 import org.maxgamer.quickshop.chat.QuickChatType;
 import org.maxgamer.quickshop.chat.platform.minedown.BungeeQuickChat;
 import org.maxgamer.quickshop.command.CommandManager;
+import org.maxgamer.quickshop.command.QuickShopCommand;
 import org.maxgamer.quickshop.database.*;
 import org.maxgamer.quickshop.economy.*;
 import org.maxgamer.quickshop.event.QSReloadEvent;
@@ -65,11 +68,9 @@ import org.maxgamer.quickshop.util.Timer;
 import org.maxgamer.quickshop.util.*;
 import org.maxgamer.quickshop.util.compatibility.CompatibilityManager;
 import org.maxgamer.quickshop.util.config.ConfigProvider;
-import org.maxgamer.quickshop.util.envcheck.*;
 import org.maxgamer.quickshop.util.matcher.item.BukkitItemMatcherImpl;
 import org.maxgamer.quickshop.util.matcher.item.ItemMatcher;
 import org.maxgamer.quickshop.util.matcher.item.QuickShopItemMatcherImpl;
-import org.maxgamer.quickshop.util.reporter.error.RollbarErrorReporter;
 import org.maxgamer.quickshop.watcher.*;
 
 import java.io.BufferedInputStream;
@@ -178,10 +179,6 @@ public class QuickShop extends JavaPlugin {
     @Getter
     private LogWatcher logWatcher;
     /**
-     * bStats, good helper for metrics.
-     */
-    private Metrics metrics;
-    /**
      * The plugin OpenInv (null if not present)
      */
     @Getter
@@ -202,11 +199,6 @@ public class QuickShop extends JavaPlugin {
      */
     @Getter
     private boolean priceChangeRequiresFee = false;
-    /**
-     * The error reporter to help devs report errors to Sentry.io
-     */
-    @Getter
-    private RollbarErrorReporter sentryErrorReporter;
     /**
      * The server UniqueID, use to the ErrorReporter
      */
@@ -246,11 +238,6 @@ public class QuickShop extends JavaPlugin {
     private Cache shopCache;
     @Getter
     private boolean allowStack;
-    @Getter
-    private EnvironmentChecker environmentChecker;
-    @Getter
-    @Nullable
-    private UpdateWatcher updateWatcher;
     @Getter
     private BuildInfo buildInfo;
     @Getter
@@ -497,7 +484,6 @@ public class QuickShop extends JavaPlugin {
                 return true;
             }
         } catch (Exception e) {
-            this.getSentryErrorReporter().ignoreThrow();
             getLogger().log(Level.WARNING, "Something going wrong when loading up economy system", e);
             getLogger().severe("QuickShop could not hook into a economy/Not found Vault or Reserve!");
             getLogger().severe("QuickShop CANNOT start!");
@@ -565,7 +551,7 @@ public class QuickShop extends JavaPlugin {
         //BEWARE THESE ONLY RUN ONCE
         instance = this;
         this.buildInfo = new BuildInfo(getResource("BUILDINFO"));
-        runtimeCheck(EnvCheckEntry.Stage.ON_LOAD);
+        //   runtimeCheck(EnvCheckEntry.Stage.ON_LOAD);吃饱撑？
         getLogger().info("Reading the configuration...");
         this.initConfiguration();
         QuickShopAPI._internal_access_only_setupApi(this);
@@ -592,9 +578,6 @@ public class QuickShop extends JavaPlugin {
     public void onDisable() {
 
         getLogger().info("QuickShop is finishing remaining work, this may need a while...");
-        if (sentryErrorReporter != null) {
-            sentryErrorReporter.unregister();
-        }
 
         if (this.integrationHelper != null) {
             this.integrationHelper.callIntegrationsUnload(IntegrateStage.onUnloadBegin);
@@ -645,11 +628,6 @@ public class QuickShop extends JavaPlugin {
         if (calendarWatcher != null) {
             calendarWatcher.stop();
         }
-        /* Unload UpdateWatcher */
-        if (this.updateWatcher != null) {
-            this.updateWatcher.uninit();
-        }
-
         Util.debugLog("Cleanup tasks...");
 
         try {
@@ -668,13 +646,6 @@ public class QuickShop extends JavaPlugin {
         PluginManager pluginManager = getServer().getPluginManager();
         try {
             File file = Paths.get(getClass().getProtectionDomain().getCodeSource().getLocation().toURI()).toFile();
-            //When quickshop was updated, we need to stop reloading
-            if (getUpdateWatcher() != null) {
-                File updatedJar = getUpdateWatcher().getUpdater().getUpdatedJar();
-                if (updatedJar != null) {
-                    throw new IllegalStateException("Failed to reload QuickShop! Please consider restarting the server. (Plugin was updated)");
-                }
-            }
             // Maybe name changed, try search globally
             if (!file.exists()) {
                 File pluginFolder = new File("plugins");
@@ -755,23 +726,7 @@ public class QuickShop extends JavaPlugin {
         }
 
     }
-    private void runtimeCheck(@NotNull EnvCheckEntry.Stage stage) {
-        testing = true;
-        environmentChecker = new org.maxgamer.quickshop.util.envcheck.EnvironmentChecker(this);
-        ResultReport resultReport = environmentChecker.run(stage);
-        if (resultReport.getFinalResult().ordinal() > CheckResult.WARNING.ordinal()) {
-            StringJoiner joiner = new StringJoiner("\n", "", "");
-            for (Entry<EnvCheckEntry, ResultContainer> result : resultReport.getResults().entrySet()) {
-                if (result.getValue().getResult().ordinal() > CheckResult.WARNING.ordinal()) {
-                    joiner.add(String.format("- [%s/%s] %s", result.getValue().getResult().getDisplay(), result.getKey().name(), result.getValue().getResultMessage()));
-                }
-            }
-            setupBootError(new BootError(this.getLogger(), joiner.toString()), true);
-            //noinspection ConstantConditions
-            Util.mainThreadRun(() -> getCommand("qs").setTabCompleter(this)); //Disable tab completer
-        }
-        testing = false;
-    }
+
 
     @Override
     public void onEnable() {
@@ -788,8 +743,8 @@ public class QuickShop extends JavaPlugin {
         getLogger().info("QuickShop " + getFork());
 
         /* Check the running envs is support or not. */
-        getLogger().info("Starting plugin self-test, please wait...");
-        runtimeCheck(EnvCheckEntry.Stage.ON_ENABLE);
+        //     getLogger().info("Starting plugin self-test, please wait...");
+        //   runtimeCheck(EnvCheckEntry.Stage.ON_ENABLE);
 
         QuickShopAPI._internal_access_only_setupApi(this);
 
@@ -799,20 +754,6 @@ public class QuickShop extends JavaPlugin {
         getLogger().info("Original author: Netherfoam, Timtower, KaiNoMood");
         getLogger().info("Let's start loading the plugin");
         getLogger().info("Chat processor selected: " + this.quickChatType.name());
-
-        /* Process Metrics and Sentry error reporter. */
-        metrics = new Metrics(this, 3320);
-
-        try {
-            if (!getConfig().getBoolean("auto-report-errors")) {
-                Util.debugLog("Error reporter was disabled!");
-            } else {
-                sentryErrorReporter = new RollbarErrorReporter(this);
-            }
-        } catch (Throwable th) {
-            getLogger().warning("Cannot load the Sentry Error Reporter: " + th.getMessage());
-            getLogger().warning("Because our error reporter doesn't work, please report this error to developer, thank you!");
-        }
 
         /* Initalize the Utils */
         this.loadItemMatcher();
@@ -855,9 +796,11 @@ public class QuickShop extends JavaPlugin {
         /* PreInit for BootError feature */
         commandManager = new CommandManager(this);
         //noinspection ConstantConditions
-        getCommand("qs").setExecutor(commandManager);
+        getCommand("qsadmin").setExecutor(commandManager);
         //noinspection ConstantConditions
-        getCommand("qs").setTabCompleter(commandManager);
+        getCommand("qsadmin").setTabCompleter(commandManager);
+
+        WdsjServerAPI.getPluginManager().registerCommand(CommandProxyBuilder.newBuilder(this, new QuickShopCommand()).setLabel("quickshop").setName("商店"));
 
         this.registerCustomCommands();
 
@@ -923,10 +866,6 @@ public class QuickShop extends JavaPlugin {
         getLogger().info("Cleaning MsgUtils...");
         MsgUtil.loadTransactionMessages();
         MsgUtil.clean();
-        if (this.getConfig().getBoolean("updater", true)) {
-            updateWatcher = new UpdateWatcher();
-            updateWatcher.init();
-        }
 
 
         /* Delay the Ecoonomy system load, give a chance to let economy system regiser. */
@@ -1053,27 +992,6 @@ public class QuickShop extends JavaPlugin {
             } else {
                 eventAdapter = "BUKKIT";
             }
-            // Version
-            metrics.addCustomChart(new Metrics.SimplePie("server_version", Bukkit::getVersion));
-            metrics.addCustomChart(new Metrics.SimplePie("bukkit_version", Bukkit::getBukkitVersion));
-            metrics.addCustomChart(new Metrics.SimplePie("vault_version", () -> vaultVer));
-            metrics.addCustomChart(new Metrics.SimplePie("use_display_items", () -> Util.boolean2Status(getConfig().getBoolean("shop.display-items"))));
-            metrics.addCustomChart(new Metrics.SimplePie("use_locks", () -> Util.boolean2Status(getConfig().getBoolean("shop.lock"))));
-            metrics.addCustomChart(new Metrics.SimplePie("use_sneak_action", () -> Util.boolean2Status(getConfig().getBoolean("shop.interact.sneak-to-create") || getConfig().getBoolean("shop.interact.sneak-to-trade") || getConfig().getBoolean("shop.interact.sneak-to-control"))));
-            metrics.addCustomChart(new Metrics.SimplePie("shop_find_distance", () -> getConfig().getString("shop.finding.distance")));
-            String finalEconomyType = economyType;
-            metrics.addCustomChart(new Metrics.SimplePie("economy_type", () -> finalEconomyType));
-            metrics.addCustomChart(new Metrics.SimplePie("use_display_auto_despawn", () -> String.valueOf(getConfig().getBoolean("shop.display-auto-despawn"))));
-            metrics.addCustomChart(new Metrics.SimplePie("use_enhance_display_protect", () -> String.valueOf(getConfig().getBoolean("shop.enchance-display-protect"))));
-            metrics.addCustomChart(new Metrics.SimplePie("use_enhance_shop_protect", () -> String.valueOf(getConfig().getBoolean("shop.enchance-shop-protect"))));
-            metrics.addCustomChart(new Metrics.SimplePie("use_ongoing_fee", () -> String.valueOf(getConfig().getBoolean("shop.ongoing-fee.enable"))));
-            metrics.addCustomChart(new Metrics.SimplePie("database_type", () -> this.getDatabaseManager().getDatabase().getName()));
-            metrics.addCustomChart(new Metrics.SimplePie("display_type", () -> DisplayItem.getNowUsing().name()));
-            metrics.addCustomChart(new Metrics.SimplePie("itemmatcher_type", () -> this.getItemMatcher().getName()));
-            metrics.addCustomChart(new Metrics.SimplePie("use_stack_item", () -> String.valueOf(this.isAllowStack())));
-            metrics.addCustomChart(new Metrics.SimplePie("chat_adapter", () -> this.getQuickChatType().name()));
-            metrics.addCustomChart(new Metrics.SimplePie("event_adapter", () -> eventAdapter));
-            metrics.addCustomChart(new Metrics.SingleLineChart("shops_created_on_all_servers", () -> this.getShopManager().getAllShops().size()));
             // Exp for stats, maybe i need improve this, so i add this.// Submit now!
             getLogger().info("Metrics submitted.");
         } else {
@@ -1894,11 +1812,11 @@ public class QuickShop extends JavaPlugin {
             getConfig().set("integration.griefprevention.trade", null);
             getConfig().set("integration.griefprevention.trade", Collections.emptyList());
 
-            boolean oldValueUntrusted  = getConfig().getBoolean("integration.griefprevention.delete-on-untrusted", false);
+            boolean oldValueUntrusted = getConfig().getBoolean("integration.griefprevention.delete-on-untrusted", false);
             getConfig().set("integration.griefprevention.delete-on-untrusted", null);
             getConfig().set("integration.griefprevention.delete-on-claim-trust-changed", oldValueUntrusted);
 
-            boolean oldValueUnclaim  = getConfig().getBoolean("integration.griefprevention.delete-on-unclaim", false);
+            boolean oldValueUnclaim = getConfig().getBoolean("integration.griefprevention.delete-on-unclaim", false);
             getConfig().set("integration.griefprevention.delete-on-unclaim", null);
             getConfig().set("integration.griefprevention.delete-on-claim-unclaimed", oldValueUnclaim);
 
@@ -1943,7 +1861,7 @@ public class QuickShop extends JavaPlugin {
 
     public void registerCustomCommands() {
         List<String> customCommands = getConfig().getStringList("custom-commands");
-        PluginCommand quickShopCommand = getCommand("qs");
+        PluginCommand quickShopCommand = getCommand("qsadmin");
         if (quickShopCommand == null) {
             getLogger().warning("Failed to get QuickShop PluginCommand instance.");
             return;
@@ -1952,7 +1870,7 @@ public class QuickShop extends JavaPlugin {
         aliases.addAll(customCommands);
         quickShopCommand.setAliases(aliases);
         try {
-            ReflectFactory.getCommandMap().register("qs", quickShopCommand);
+            ReflectFactory.getCommandMap().register("qsadmin", quickShopCommand);
             ReflectFactory.syncCommands();
         } catch (Exception e) {
             getLogger().log(Level.WARNING, "Failed to register command aliases", e);

@@ -34,6 +34,10 @@ import org.maxgamer.quickshop.util.Util;
 @AllArgsConstructor
 public class SubCommand_Buy implements CommandHandler<Player> {
 
+    public static SubCommand_Buy instance;
+    {
+        instance = this;
+    }
     private final QuickShop plugin;
 
     @Override

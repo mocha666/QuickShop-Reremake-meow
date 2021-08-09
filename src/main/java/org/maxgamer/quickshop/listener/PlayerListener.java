@@ -21,6 +21,7 @@ package org.maxgamer.quickshop.listener;
 
 import me.lucko.helper.cooldown.Cooldown;
 import me.lucko.helper.cooldown.CooldownMap;
+import net.wdsj.mcserver.gui.common.GuiManager;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -39,16 +40,20 @@ import org.bukkit.util.BlockIterator;
 import org.jetbrains.annotations.NotNull;
 import org.maxgamer.quickshop.QuickShop;
 import org.maxgamer.quickshop.economy.Economy;
+import org.maxgamer.quickshop.gui.DualShopConfirmMenu;
+import org.maxgamer.quickshop.gui.ShopPurchaseBuySign;
+import org.maxgamer.quickshop.gui.ShopPurchaseSellSign;
 import org.maxgamer.quickshop.shop.Info;
 import org.maxgamer.quickshop.shop.Shop;
 import org.maxgamer.quickshop.shop.ShopAction;
+import org.maxgamer.quickshop.shop.ShopType;
 import org.maxgamer.quickshop.util.InteractUtil;
 import org.maxgamer.quickshop.util.MsgUtil;
 import org.maxgamer.quickshop.util.Util;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class PlayerListener extends QSListener {
@@ -122,6 +127,8 @@ public class PlayerListener extends QSListener {
         }
     }
 
+    private Map<Player, Location> confirmMap = new WeakHashMap<>();
+
     private void postControlPanel(PlayerInteractEvent e) {
         final Block b = e.getClickedBlock();
         final Player p = e.getPlayer();
@@ -191,48 +198,66 @@ public class PlayerListener extends QSListener {
             final double price = shop.getPrice();
             final double money = plugin.getEconomy().getBalance(p.getUniqueId(), shop.getLocation().getWorld(), shop.getCurrency());
 
-            if (shop.isSelling()) {
-                int itemAmount = Math.min(Util.countSpace(p.getInventory(), shop.getItem()), (int) Math.floor(money / price));
-                if (!shop.isUnlimited()) {
-                    itemAmount = Math.min(itemAmount, shop.getRemainingStock());
-                }
-                if (itemAmount < 0) {
-                    itemAmount = 0;
-                }
-                if (shop.isStackingShop()) {
-                    MsgUtil.sendMessage(p, "how-many-buy-stack", Integer.toString(shop.getItem().getAmount()), Integer.toString(itemAmount));
+            if (shop.getShopType() != ShopType.DUALING) {
+                if (shop.isSelling()) {
+                    int itemAmount = Math.min(Util.countSpace(p.getInventory(), shop.getItem()), (int) Math.floor(money / price));
+                    if (!shop.isUnlimited()) {
+                        itemAmount = Math.min(itemAmount, shop.getRemainingStock());
+                    }
+                    if (itemAmount < 0) {
+                        itemAmount = 0;
+                    }
+                    //  if (shop.isStackingShop()) {
+                    //      MsgUtil.sendMessage(p, "how-many-buy-stack", Integer.toString(shop.getItem().getAmount()), Integer.toString(itemAmount));
+                    //  } else {
+                    //      MsgUtil.sendMessage(p, "how-many-buy", Integer.toString(itemAmount));
+                    //  }
                 } else {
-                    MsgUtil.sendMessage(p, "how-many-buy", Integer.toString(itemAmount));
-                }
-            } else {
-                final double ownerBalance = eco.getBalance(shop.getOwner(), shop.getLocation().getWorld(), shop.getCurrency());
-                int items = Util.countItems(p.getInventory(), shop.getItem());
-                final int ownerCanAfford = (int) (ownerBalance / shop.getPrice());
+                    final double ownerBalance = eco.getBalance(shop.getOwner(), shop.getLocation().getWorld(), shop.getCurrency());
+                    int items = Util.countItems(p.getInventory(), shop.getItem());
+                    final int ownerCanAfford = (int) (ownerBalance / shop.getPrice());
 
-                if (!shop.isUnlimited()) {
-                    // Amount check player amount and shop empty slot
-                    items = Math.min(items, shop.getRemainingSpace());
-                    // Amount check player selling item total cost and the shop owner's balance
-                    items = Math.min(items, ownerCanAfford);
-                } else if (plugin.getConfig().getBoolean("shop.pay-unlimited-shop-owners")) {
-                    // even if the shop is unlimited, the config option pay-unlimited-shop-owners is set to
-                    // true,
-                    // the unlimited shop owner should have enough money.
-                    items = Math.min(items, ownerCanAfford);
-                }
-                if (items < 0) {
-                    items = 0;
-                }
-                if (shop.isStackingShop()) {
-                    MsgUtil.sendMessage(p, "how-many-sell-stack", Integer.toString(shop.getItem().getAmount()), Integer.toString(items));
-                } else {
-                    MsgUtil.sendMessage(p, "how-many-sell", Integer.toString(items));
+                    if (!shop.isUnlimited()) {
+                        // Amount check player amount and shop empty slot
+                        items = Math.min(items, shop.getRemainingSpace());
+                        // Amount check player selling item total cost and the shop owner's balance
+                        items = Math.min(items, ownerCanAfford);
+                    } else if (plugin.getConfig().getBoolean("shop.pay-unlimited-shop-owners")) {
+                        // even if the shop is unlimited, the config option pay-unlimited-shop-owners is set to
+                        // true,
+                        // the unlimited shop owner should have enough money.
+                        items = Math.min(items, ownerCanAfford);
+                    }
+                    if (items < 0) {
+                        items = 0;
+                    }
+                    //  if (shop.isStackingShop()) {
+                    //      MsgUtil.sendMessage(p, "how-many-sell-stack", Integer.toString(shop.getItem().getAmount()), Integer.toString(items));
+                    //  } else {
+                    //      MsgUtil.sendMessage(p, "how-many-sell", Integer.toString(items));
+                    //  }
                 }
             }
             // Add the new action
-            Map<UUID, Info> actions = plugin.getShopManager().getActions();
-            Info info = new Info(shop.getLocation(), ShopAction.BUY, null, null, shop);
-            actions.put(p.getUniqueId(), info);
+            //     Map<UUID, Info> actions = plugin.getShopManager().getActions();
+            Location location = confirmMap.get(p);
+            if (loc.equals(location)) {
+                confirmMap.remove(p);
+                Info info = new Info(shop.getLocation(), ShopAction.BUY, null, null, shop);
+                if (shop.getShopType() == ShopType.SELLING) {
+                    GuiManager.open(e.getPlayer(), new ShopPurchaseSellSign(e.getPlayer(), info));
+                } else if (shop.getShopType() == ShopType.BUYING) {
+                    GuiManager.open(e.getPlayer(), new ShopPurchaseBuySign(e.getPlayer(), info));
+                } else if (shop.getShopType() == ShopType.DUALING) {
+                    DualShopConfirmMenu dualShopConfirmMenu = new DualShopConfirmMenu(e.getPlayer(), shop, info);
+                    GuiManager.open(e.getPlayer(), dualShopConfirmMenu);
+                }
+            } else {
+                confirmMap.put(p, loc);
+                MsgUtil.sendMessage(p, "two-click-confirm");
+            }
+            return;
+
         }
         // Handles creating shops
         else if (e.useInteractedBlock() == Event.Result.ALLOW
@@ -287,8 +312,13 @@ public class PlayerListener extends QSListener {
             final Info info = new Info(b.getLocation(), ShopAction.CREATE, e.getItem(), last);
 
             plugin.getShopManager().getActions().put(p.getUniqueId(), info);
-            MsgUtil.sendMessage(p, "how-much-to-trade-for", Util.getItemStackName(Objects.requireNonNull(e.getItem())), Integer.toString(plugin.isAllowStack() && QuickShop.getPermissionManager().hasPermission(p, "quickshop.create.stacks") ? item.getAmount() : 1));
+            MsgUtil.sendMessage(p, "how-much-to-trade-for", Util.getItemStackName(p, Objects.requireNonNull(e.getItem())), Integer.toString(plugin.isAllowStack() && QuickShop.getPermissionManager().hasPermission(p, "quickshop.create.stacks") ? item.getAmount() : 1));
         }
+    }
+
+    @EventHandler
+    public void on(PlayerQuitEvent event) {
+        confirmMap.remove(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

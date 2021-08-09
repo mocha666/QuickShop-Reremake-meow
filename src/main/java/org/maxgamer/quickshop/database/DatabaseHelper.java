@@ -65,7 +65,7 @@ public class DatabaseHelper {
      */
 
     private void createShopsTable() {
-        String sqlString = "CREATE TABLE " + plugin.getDbPrefix() + "shops (owner  VARCHAR(255) NOT NULL, price  double(32, 2) NOT NULL, itemConfig TEXT CHARSET utf8 NOT NULL, x  INTEGER(32) NOT NULL, y  INTEGER(32) NOT NULL, z  INTEGER(32) NOT NULL, world VARCHAR(32) NOT NULL, unlimited  boolean, type  boolean, PRIMARY KEY (x, y, z, world) );";
+        String sqlString = "CREATE TABLE " + plugin.getDbPrefix() + "shops (owner  VARCHAR(255) NOT NULL, price  double(32, 2) NOT NULL,sellPrice  double(32, 2) NOT NULL, itemConfig TEXT CHARSET utf8 NOT NULL, x  INTEGER(32) NOT NULL, y  INTEGER(32) NOT NULL, z  INTEGER(32) NOT NULL, world VARCHAR(32) NOT NULL, unlimited  boolean, type  boolean, PRIMARY KEY (x, y, z, world) );";
         manager.runInstantTask(new DatabaseTask(sqlString));
     }
 
@@ -108,7 +108,7 @@ public class DatabaseHelper {
         try {
             if (!manager.hasColumn(plugin.getDbPrefix() + "shops", "extra")) {
                 String sqlString;
-                // Reremake - DataStorage 
+                //  Reremake - DataStorage
                 // @TODO needs testing
                 if (manager.getDatabase() instanceof MySQLCore) {
                     sqlString = "ALTER TABLE " + plugin
@@ -153,7 +153,7 @@ public class DatabaseHelper {
 
     public void createShop(@NotNull Shop shop, @Nullable Runnable onSuccess, @Nullable Consumer<SQLException> onFailed) {
         removeShop(shop); //First purge old exist shop before create new shop.
-        String sqlString = "INSERT INTO " + plugin.getDbPrefix() + "shops (owner, price, itemConfig, x, y, z, world, unlimited, type, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sqlString = "INSERT INTO " + plugin.getDbPrefix() + "shops (owner, price, sellPrice, itemConfig, x, y, z, world, unlimited, type, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         manager.addDelayTask(new DatabaseTask(sqlString, new DatabaseTask.Task() {
             @Override
             public void edit(PreparedStatement ps) throws SQLException {
@@ -161,20 +161,21 @@ public class DatabaseHelper {
                 //plugin.getDB().execute(q, owner, price, Util.serialize(item), x, y, z, world, unlimited, shopType);
                 ps.setString(1, ShopModerator.serialize(shop.getModerator()));
                 ps.setDouble(2, shop.getPrice());
-                ps.setString(3, Util.serialize(shop.getItem()));
-                ps.setInt(4, location.getBlockX());
-                ps.setInt(5, location.getBlockY());
-                ps.setInt(6, location.getBlockZ());
+                ps.setDouble(3, shop.getPrice());
+                ps.setString(4, Util.serialize(shop.getItem()));
+                ps.setInt(5, location.getBlockX());
+                ps.setInt(6, location.getBlockY());
+                ps.setInt(7, location.getBlockZ());
                 String worldName = "undefined";
                 if (location.getWorld() != null) {
                     worldName = location.getWorld().getName();
                 } else {
                     plugin.getLogger().warning("Warning: Shop " + shop + " had null world name due we will save it as undefined world to trying keep data.");
                 }
-                ps.setString(7, worldName);
-                ps.setInt(8, shop.isUnlimited() ? 1 : 0);
-                ps.setInt(9, shop.getShopType().toID());
-                ps.setString(10, shop.saveExtraToYaml());
+                ps.setString(8, worldName);
+                ps.setInt(9, shop.isUnlimited() ? 1 : 0);
+                ps.setInt(10, shop.getShopType().toID());
+                ps.setString(11, shop.saveExtraToYaml());
             }
 
             @Override
@@ -273,20 +274,21 @@ public class DatabaseHelper {
     }
 
     public void updateShop(@NotNull String owner, @NotNull ItemStack item, int unlimited, int shopType,
-                           double price, int x, int y, int z, String world, String extra) {
+                           double price,   double sellPrice, int x, int y, int z, String world, String extra) {
         String sqlString = "UPDATE " + plugin
-                .getDbPrefix() + "shops SET owner = ?, itemConfig = ?, unlimited = ?, type = ?, price = ?, extra = ? WHERE x = ? AND y = ? and z = ? and world = ?";
+                .getDbPrefix() + "shops SET owner = ?, itemConfig = ?, unlimited = ?, type = ?, price = ?, sellPrice = ?, extra = ? WHERE x = ? AND y = ? and z = ? and world = ?";
         manager.addDelayTask(new DatabaseTask(sqlString, ps -> {
             ps.setString(1, owner);
             ps.setString(2, Util.serialize(item));
             ps.setInt(3, unlimited);
             ps.setInt(4, shopType);
             ps.setDouble(5, price);
-            ps.setString(6, extra);
-            ps.setInt(7, x);
-            ps.setInt(8, y);
-            ps.setInt(9, z);
-            ps.setString(10, world);
+            ps.setDouble(6, sellPrice);
+            ps.setString(7, extra);
+            ps.setInt(8, x);
+            ps.setInt(9, y);
+            ps.setInt(10, z);
+            ps.setString(11, world);
         }));
         //db.execute(q, owner, Util.serialize(item), unlimited, shopType, price, x, y, z, world);
 

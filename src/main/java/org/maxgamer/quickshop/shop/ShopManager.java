@@ -487,7 +487,7 @@ public class ShopManager {
                 actionCreate(p, info, message, bypassProtectionChecks);
             }
             if (info.getAction() == ShopAction.BUY) {
-                actionTrade(p, info, message);
+                actionTrade(p, info, null, message);
             }
         });
     }
@@ -722,7 +722,7 @@ public class ShopManager {
         MsgUtil.send(shop, shop.getOwner(), transactionMessage);
         shop.buy(buyer, buyerInventory, player != null ? player.getLocation() : shop.getLocation(), amount);
         MsgUtil.sendSellSuccess(buyer, shop, amount);
-        ShopSuccessPurchaseEvent se = new ShopSuccessPurchaseEvent(shop, buyer, buyerInventory, amount, total, taxModifier);
+        ShopSuccessPurchaseEvent se = new ShopSuccessPurchaseEvent(shop, buyer, PurchaseAction.BUY, buyerInventory, amount, total, taxModifier);
         plugin.getServer().getPluginManager().callEvent(se);
         shop.setSignText(); // Update the signs count
     }
@@ -898,6 +898,7 @@ public class ShopManager {
                 plugin,
                 info.getLocation(),
                 price,
+                0.0,
                 info.getItem(),
                 new ShopModerator(p.getUniqueId()),
                 false,
@@ -1098,7 +1099,7 @@ public class ShopManager {
         }
         shop.sell(seller, sellerInventory, player != null ? player.getLocation() : shop.getLocation(), amount);
         MsgUtil.sendPurchaseSuccess(seller, shop, amount);
-        ShopSuccessPurchaseEvent se = new ShopSuccessPurchaseEvent(shop, seller, sellerInventory, amount, total, taxModifier);
+        ShopSuccessPurchaseEvent se = new ShopSuccessPurchaseEvent(shop, seller, PurchaseAction.SELL, sellerInventory, amount, total, taxModifier);
         plugin.getServer().getPluginManager().callEvent(se);
     }
 
@@ -1124,7 +1125,8 @@ public class ShopManager {
         return false;
     }
 
-    private void actionTrade(@NotNull Player p, @NotNull Info info, @NotNull String message) {
+    public void actionTrade(@NotNull Player p, @NotNull Info info, PurchaseAction action, int amount) {
+        boolean all = amount <= 0;
         Util.ensureThread(false);
         if (plugin.getEconomy() == null) {
             MsgUtil.sendDirectMessage(p, "Error: Economy system not loaded, type /qs main command to get details.");
@@ -1150,139 +1152,144 @@ public class ShopManager {
             MsgUtil.sendMessage(p, "trading-in-creative-mode-is-disabled");
             return;
         }
-        int amount;
         if (info.hasChanged(shop)) {
             MsgUtil.sendMessage(p, "shop-has-changed");
             return;
         }
-        if (shop.isBuying()) {
-            if (StringUtils.isNumeric(message)) {
-                amount = Integer.parseInt(message);
-            } else {
-                if (message.equalsIgnoreCase(
-                        plugin.getConfig().getString("shop.word-for-trade-all-items", "all"))) {
-                    int shopHaveSpaces =
-                            Util.countSpace(((ContainerShop) shop).getInventory(), shop.getItem());
-                    int invHaveItems = Util.countItems(p.getInventory(), shop.getItem());
-                    // Check if shop owner has enough money
-                    double ownerBalance = eco
-                            .getBalance(shop.getOwner(), shop.getLocation().getWorld(),
-                                    shop.getCurrency());
-                    int ownerCanAfford;
+        if (action == null) {
+            switch (shop.getShopType()) {
+                case SELLING:
+                    action = PurchaseAction.SELL;
+                    break;
+                case BUYING:
+                    action = PurchaseAction.BUY;
+                    break;
+            }
+        }
+        if (action == PurchaseAction.BUY) {
+            if (all) {
+                int shopHaveSpaces =
+                        Util.countSpace(((ContainerShop) shop).getInventory(), shop.getItem());
+                int invHaveItems = Util.countItems(p.getInventory(), shop.getItem());
+                // Check if shop owner has enough money
+                double ownerBalance = eco
+                        .getBalance(shop.getOwner(), shop.getLocation().getWorld(),
+                                shop.getCurrency());
+                int ownerCanAfford;
 
-                    if (shop.getPrice() != 0) {
-                        ownerCanAfford = (int) (ownerBalance / shop.getPrice());
-                    } else {
-                        ownerCanAfford = Integer.MAX_VALUE;
-                    }
+                if (shop.getPrice() != 0) {
+                    ownerCanAfford = (int) (ownerBalance / shop.getPrice());
+                } else {
+                    ownerCanAfford = Integer.MAX_VALUE;
+                }
 
-                    if (!shop.isUnlimited()) {
-                        amount = Math.min(shopHaveSpaces, invHaveItems);
+                if (!shop.isUnlimited()) {
+                    amount = Math.min(shopHaveSpaces, invHaveItems);
+                    amount = Math.min(amount, ownerCanAfford);
+                } else {
+                    amount = Util.countItems(p.getInventory(), shop.getItem());
+                    // even if the shop is unlimited, the config option pay-unlimited-shop-owners is set to
+                    // true,
+                    // the unlimited shop owner should have enough money.
+                    if (plugin.getConfig().getBoolean("shop.pay-unlimited-shop-owners")) {
                         amount = Math.min(amount, ownerCanAfford);
-                    } else {
-                        amount = Util.countItems(p.getInventory(), shop.getItem());
-                        // even if the shop is unlimited, the config option pay-unlimited-shop-owners is set to
-                        // true,
-                        // the unlimited shop owner should have enough money.
-                        if (plugin.getConfig().getBoolean("shop.pay-unlimited-shop-owners")) {
-                            amount = Math.min(amount, ownerCanAfford);
-                        }
                     }
-                    if (amount < 1) { // typed 'all' but the auto set amount is 0
-                        if (shopHaveSpaces == 0) {
-                            // when typed 'all' but the shop doesn't have any empty space
-                            MsgUtil.sendMessage(p, "shop-has-no-space", Integer.toString(shopHaveSpaces),
-                                    Util.getItemStackName(shop.getItem()));
-                            return;
-                        }
-                        if (ownerCanAfford == 0
-                                && (!shop.isUnlimited()
-                                || plugin.getConfig().getBoolean("shop.pay-unlimited-shop-owners"))) {
-                            // when typed 'all' but the shop owner doesn't have enough money to buy at least 1
-                            // item (and shop isn't unlimited or pay-unlimited is true)
-                            MsgUtil.sendMessage(p, "the-owner-cant-afford-to-buy-from-you",
-                                    Objects.requireNonNull(
-                                            format(shop.getPrice(), shop.getLocation().getWorld(),
-                                                    shop.getCurrency())),
-                                    Objects.requireNonNull(
-                                            format(ownerBalance, shop.getLocation().getWorld(),
-                                                    shop.getCurrency())));
-                            return;
-                        }
-                        // when typed 'all' but player doesn't have any items to sell
-                        MsgUtil.sendMessage(p, "you-dont-have-that-many-items",
-                                Integer.toString(amount),
+                }
+                if (amount < 1) { // typed 'all' but the auto set amount is 0
+                    if (shopHaveSpaces == 0) {
+                        // when typed 'all' but the shop doesn't have any empty space
+                        MsgUtil.sendMessage(p, "shop-has-no-space", Integer.toString(shopHaveSpaces),
                                 Util.getItemStackName(shop.getItem()));
                         return;
                     }
-                } else {
-                    // instead of output cancelled message (when typed neither integer or 'all'), just let
-                    // player know that there should be positive number or 'all'
-                    MsgUtil.sendMessage(p, "not-a-integer", message);
-                    Util.debugLog(
-                            "Receive the chat " + message + " and it format failed: " + message);
+                    if (ownerCanAfford == 0
+                            && (!shop.isUnlimited()
+                            || plugin.getConfig().getBoolean("shop.pay-unlimited-shop-owners"))) {
+                        // when typed 'all' but the shop owner doesn't have enough money to buy at least 1
+                        // item (and shop isn't unlimited or pay-unlimited is true)
+                        MsgUtil.sendMessage(p, "the-owner-cant-afford-to-buy-from-you",
+                                Objects.requireNonNull(
+                                        format(shop.getPrice(), shop.getLocation().getWorld(),
+                                                shop.getCurrency())),
+                                Objects.requireNonNull(
+                                        format(ownerBalance, shop.getLocation().getWorld(),
+                                                shop.getCurrency())));
+                        return;
+                    }
+                    // when typed 'all' but player doesn't have any items to sell
+                    MsgUtil.sendMessage(p, "you-dont-have-that-many-items",
+                            Integer.toString(amount),
+                            Util.getItemStackName(shop.getItem()));
                     return;
                 }
             }
+
             actionBuy(p.getUniqueId(), p.getInventory(), eco, info, shop, amount);
-        } else if (shop.isSelling()) {
-            if (StringUtils.isNumeric(message)) {
-                amount = Integer.parseInt(message);
-            } else {
-                if (message.equalsIgnoreCase(
-                        plugin.getConfig().getString("shop.word-for-trade-all-items", "all"))) {
-                    int shopHaveItems = Util
-                            .countItems(((ContainerShop) shop).getInventory(), shop.getItem());
-                    int invHaveSpaces = Util.countSpace(p.getInventory(), shop.getItem());
-                    if (!shop.isUnlimited()) {
-                        amount = Math.min(shopHaveItems, invHaveSpaces);
-                    } else {
-                        // should check not having items but having empty slots, cause player is trying to buy
-                        // items from the shop.
-                        amount = Util.countSpace(p.getInventory(), shop.getItem());
-                    }
-                    // typed 'all', check if player has enough money than price * amount
-                    double price = shop.getPrice();
-                    double balance = eco.getBalance(p.getUniqueId(), shop.getLocation().getWorld(),
-                            shop.getCurrency());
-                    amount = Math.min(amount, (int) Math.floor(balance / price));
-                    if (amount < 1) { // typed 'all' but the auto set amount is 0
-                        // when typed 'all' but player can't buy any items
-                        if (!shop.isUnlimited() && shopHaveItems < 1) {
-                            // but also the shop's stock is 0
-                            MsgUtil.sendMessage(p, "shop-stock-too-low",
-                                    Integer.toString(shop.getRemainingStock()),
-                                    Util.getItemStackName(shop.getItem()));
-                        } else {
-                            // when if player's inventory is full
-                            if (invHaveSpaces <= 0) {
-                                MsgUtil.sendMessage(p, "not-enough-space",
-                                        String.valueOf(invHaveSpaces));
-                                return;
-                            }
-                            MsgUtil.sendMessage(p, "you-cant-afford-to-buy",
-                                    Objects.requireNonNull(
-                                            format(price, shop.getLocation().getWorld(),
-                                                    shop.getCurrency())),
-                                    Objects.requireNonNull(
-                                            format(balance, shop.getLocation().getWorld(),
-                                                    shop.getCurrency())));
-                        }
-                        return;
-                    }
+        } else if (action == PurchaseAction.SELL) {
+            if (all) {
+                int shopHaveItems = Util
+                        .countItems(((ContainerShop) shop).getInventory(), shop.getItem());
+                int invHaveSpaces = Util.countSpace(p.getInventory(), shop.getItem());
+                if (!shop.isUnlimited()) {
+                    amount = Math.min(shopHaveItems, invHaveSpaces);
                 } else {
-                    // instead of output cancelled message, just let player know that there should be positive
-                    // number or 'all'
-                    MsgUtil.sendMessage(p, "not-a-integer", message);
-                    Util.debugLog(
-                            "Receive the chat " + message + " and it format failed: " + message);
+                    // should check not having items but having empty slots, cause player is trying to buy
+                    // items from the shop.
+                    amount = Util.countSpace(p.getInventory(), shop.getItem());
+                }
+                // typed 'all', check if player has enough money than price * amount
+                double price = shop.getPrice();
+                double balance = eco.getBalance(p.getUniqueId(), shop.getLocation().getWorld(),
+                        shop.getCurrency());
+                amount = Math.min(amount, (int) Math.floor(balance / price));
+                if (amount < 1) { // typed 'all' but the auto set amount is 0
+                    // when typed 'all' but player can't buy any items
+                    if (!shop.isUnlimited() && shopHaveItems < 1) {
+                        // but also the shop's stock is 0
+                        MsgUtil.sendMessage(p, "shop-stock-too-low",
+                                Integer.toString(shop.getRemainingStock()),
+                                Util.getItemStackName(shop.getItem()));
+                    } else {
+                        // when if player's inventory is full
+                        if (invHaveSpaces <= 0) {
+                            MsgUtil.sendMessage(p, "not-enough-space",
+                                    String.valueOf(invHaveSpaces));
+                            return;
+                        }
+                        MsgUtil.sendMessage(p, "you-cant-afford-to-buy",
+                                Objects.requireNonNull(
+                                        format(price, shop.getLocation().getWorld(),
+                                                shop.getCurrency())),
+                                Objects.requireNonNull(
+                                        format(balance, shop.getLocation().getWorld(),
+                                                shop.getCurrency())));
+                    }
                     return;
                 }
+            } else {
             }
             actionSell(p.getUniqueId(), p.getInventory(), eco, info, shop, amount);
         } else {
             MsgUtil.sendMessage(p, "shop-purchase-cancelled");
             plugin.getLogger().warning("Shop data broken? Loc:" + shop.getLocation());
+        }
+
+    }
+
+    public void actionTrade(@NotNull Player p, @NotNull Info info, PurchaseAction action, @NotNull String message) {
+        if (StringUtils.isNumeric(message)) {
+            actionTrade(p, info, action, Integer.parseInt(message));
+        } else {
+            if (message.equalsIgnoreCase(
+                    plugin.getConfig().getString("shop.word-for-trade-all-items", "all"))) {
+                actionTrade(p, info, action, -1);
+            } else {
+                // instead of output cancelled message (when typed neither integer or 'all'), just let
+                // player know that there should be positive number or 'all'
+                MsgUtil.sendMessage(p, "not-a-integer", message);
+                Util.debugLog(
+                        "Receive the chat " + message + " and it format failed: " + message);
+            }
         }
     }
 

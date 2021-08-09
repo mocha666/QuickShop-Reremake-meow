@@ -24,7 +24,7 @@ import com.google.common.collect.Maps;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import lombok.*;
-import me.clip.placeholderapi.PlaceholderAPI;
+import net.wdsj.servercore.common.placeholder.PlaceholderManager;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -49,6 +49,7 @@ import org.maxgamer.quickshop.database.WarpedResultSet;
 import org.maxgamer.quickshop.event.ShopControlPanelOpenEvent;
 import org.maxgamer.quickshop.file.HumanReadableJsonConfiguration;
 import org.maxgamer.quickshop.shop.Shop;
+import org.maxgamer.quickshop.shop.ShopType;
 import org.maxgamer.quickshop.util.language.game.GameLanguage;
 import org.maxgamer.quickshop.util.language.game.MojangGameLanguageImpl;
 
@@ -177,15 +178,9 @@ public class MsgUtil {
                 return invaildMsg + ": " + loc;
             }
             String filled = fillArgs(raw, args);
-            if (player != null) {
-                if (plugin.getConfig().getBoolean("plugin.PlaceHolderAPI") && plugin.getPlaceHolderAPI() != null && plugin.getPlaceHolderAPI().isEnabled()) {
-                    filled = PlaceholderAPI.setPlaceholders(player, filled);
-                    Util.debugLog("Processed message " + filled + " by PlaceHolderAPI.");
-                }
-            }
-            return filled;
+            return PlaceholderManager.replace(player, filled);
         } catch (Exception th) {
-            plugin.getSentryErrorReporter().ignoreThrow();
+
             plugin.getLogger().log(Level.WARNING, "Failed to process messages", th);
             return "Cannot load language key: " + loc + " because something not right, check the console for details.";
         }
@@ -614,7 +609,7 @@ public class MsgUtil {
                                     ? (" (" + shop.getOwner() + ")")
                                     : "")),
                     MsgUtil.getMessage("controlpanel.setowner-hover", sender),
-                    "/qs setowner ");
+                    "/qsadmin setowner ");
         }
 
 
@@ -625,7 +620,7 @@ public class MsgUtil {
             String hoverText = MsgUtil.getMessage("controlpanel.unlimited-hover", sender);
             String clickCommand =
                     MsgUtil.fillArgs(
-                            "/qs silentunlimited {0}",
+                            "/qsadmin silentunlimited {0}",
                             shop.getRuntimeRandomUniqueId().toString());
             chatSheetPrinter.printExecutableCmdLine(text, hoverText, clickCommand);
         }
@@ -668,7 +663,7 @@ public class MsgUtil {
             if (QuickShop.getPermissionManager().hasPermission(sender, "quickshop.other.amount") || shop.getOwner().equals(((OfflinePlayer) sender).getUniqueId()) && QuickShop.getPermissionManager().hasPermission(sender, "quickshop.create.changeamount")) {
                 String text = MsgUtil.getMessage("controlpanel.stack", sender, Integer.toString(shop.getItem().getAmount()));
                 String hoverText = MsgUtil.getMessage("controlpanel.stack-hover", sender);
-                String clickCommand = "/qs size ";
+                String clickCommand = "/qsadmin size ";
                 chatSheetPrinter.printSuggestedCmdLine(text, hoverText, clickCommand);
 
             }
@@ -679,14 +674,14 @@ public class MsgUtil {
                 String text =
                         MsgUtil.getMessage("controlpanel.refill", sender, String.valueOf(shop.getPrice()));
                 String hoverText = MsgUtil.getMessage("controlpanel.refill-hover", sender);
-                String clickCommand = "/qs refill ";
+                String clickCommand = "/qsadmin refill ";
                 chatSheetPrinter.printSuggestedCmdLine(text, hoverText, clickCommand);
             }
             // Empty
             if (QuickShop.getPermissionManager().hasPermission(sender, "quickshop.empty")) {
                 String text = MsgUtil.getMessage("controlpanel.empty", sender, String.valueOf(shop.getPrice()));
                 String hoverText = MsgUtil.getMessage("controlpanel.empty-hover", sender);
-                String clickCommand = MsgUtil.fillArgs("/qs silentempty {0}", shop.getRuntimeRandomUniqueId().toString());
+                String clickCommand = MsgUtil.fillArgs("/qsadmin silentempty {0}", shop.getRuntimeRandomUniqueId().toString());
                 chatSheetPrinter.printExecutableCmdLine(text, hoverText, clickCommand);
             }
         }
@@ -732,24 +727,10 @@ public class MsgUtil {
                 return fillArgs(loc, args);
             }
             String filled = fillArgs(raw, args);
-            if (player instanceof OfflinePlayer) {
-                if (plugin.getPlaceHolderAPI() != null && plugin.getPlaceHolderAPI().isEnabled() && plugin.getConfig().getBoolean("plugin.PlaceHolderAPI")) {
-                    try {
-                        filled = PlaceholderAPI.setPlaceholders((OfflinePlayer) player, filled);
-                    } catch (Exception ignored) {
-                        if (((OfflinePlayer) player).getPlayer() != null) {
-                            try {
-                                filled = PlaceholderAPI.setPlaceholders(((OfflinePlayer) player).getPlayer(), filled);
-                            } catch (Exception ignore) {
-                            }
-                        }
-                    }
-                }
-            }
-            return filled;
+            return PlaceholderManager.replace(player, filled);
         } catch (Throwable th) {
             th.printStackTrace();
-            plugin.getSentryErrorReporter().ignoreThrow();
+
             plugin.getLogger().log(Level.WARNING, "Failed to load language key", th);
             return "Cannot load language key: " + loc + " because something not right, check the console for details.";
         }
@@ -783,7 +764,6 @@ public class MsgUtil {
             Util.debugLog("Content is null");
             Throwable throwable =
                     new Throwable("Known issue: Global Alert accepted null string, what the fuck");
-            plugin.getSentryErrorReporter().sendError(throwable, "NullCheck");
             return;
         }
         sendMessageToOps(content);
@@ -819,7 +799,7 @@ public class MsgUtil {
         ChatSheetPrinter chatSheetPrinter = new ChatSheetPrinter(sender);
         chatSheetPrinter.printHeader();
         chatSheetPrinter.printLine(MsgUtil.getMessage("menu.successful-purchase", sender));
-        chatSheetPrinter.printLine(MsgUtil.getMessage("menu.item-name-and-price", sender, Integer.toString(amount * shop.getItem().getAmount()), Util.getItemStackName(shop.getItem()), Util.format(amount * shop.getPrice(), shop)));
+        chatSheetPrinter.printLine(MsgUtil.getMessage("menu.item-name-and-price", sender, Integer.toString(amount * shop.getItem().getAmount()), Util.getItemStackName(sender, shop.getItem()), Util.format(amount * shop.getPrice(), shop)));
         printEnchantment(sender, shop, chatSheetPrinter);
         chatSheetPrinter.printFooter();
     }
@@ -925,7 +905,7 @@ public class MsgUtil {
         chatSheetPrinter.printLine(MsgUtil.getMessage("menu.shop-information", p));
         chatSheetPrinter.printLine(MsgUtil.getMessage("menu.owner", p, shop.ownerName()));
         // Enabled
-        plugin.getQuickChat().send(p, plugin.getQuickChat().getItemHologramChat(shop, items, p, ChatColor.DARK_PURPLE + MsgUtil.getMessage("tableformat.left_begin", p) + MsgUtil.getMessage("menu.item", p, Util.getItemStackName(items)) + "  "));
+        plugin.getQuickChat().send(p, plugin.getQuickChat().getItemHologramChat(shop, items, p, ChatColor.DARK_PURPLE + MsgUtil.getMessage("tableformat.left_begin", p) + MsgUtil.getMessage("menu.item", p, Util.getItemStackName(p, items)) + "  "));
         if (Util.isTool(items.getType())) {
             chatSheetPrinter.printLine(
                     MsgUtil.getMessage("menu.damage-percent-remaining", p, Util.getToolPercentage(items)));
@@ -947,15 +927,29 @@ public class MsgUtil {
                         MsgUtil.getMessage("menu.space", p, Integer.toString(shop.getRemainingSpace())));
             }
         }
-        if (shop.getItem().getAmount() == 1) {
-            chatSheetPrinter.printLine(MsgUtil.getMessage("menu.price-per", p, Util.getItemStackName(shop.getItem()), Util.format(shop.getPrice(), shop)));
-        } else {
-            chatSheetPrinter.printLine(MsgUtil.getMessage("menu.price-per-stack", p, Util.getItemStackName(shop.getItem()), Util.format(shop.getPrice(), shop), Integer.toString(shop.getItem().getAmount())));
+        if (shop.getShopType() == ShopType.DUALING){
+            if (shop.getItem().getAmount() == 1) {
+                chatSheetPrinter.printLine(MsgUtil.getMessage("menu.dual-price-per", p, Util.getItemStackName(shop.getItem()), Util.format(shop.getPrice(), shop), Util.format(shop.getSellPrice(), shop)));
+            } else {
+                chatSheetPrinter.printLine(MsgUtil.getMessage("menu.dual-price-per-stack", p, Util.getItemStackName(shop.getItem()), Util.format(shop.getPrice(), shop), Util.format(shop.getSellPrice(), shop), Integer.toString(shop.getItem().getAmount())));
+            }
+        }else {
+            if (shop.getItem().getAmount() == 1) {
+                chatSheetPrinter.printLine(MsgUtil.getMessage("menu.price-per", p, Util.getItemStackName(shop.getItem()), Util.format(shop.getPrice(), shop)));
+            } else {
+                chatSheetPrinter.printLine(MsgUtil.getMessage("menu.price-per-stack", p, Util.getItemStackName(shop.getItem()), Util.format(shop.getPrice(), shop), Integer.toString(shop.getItem().getAmount())));
+            }
         }
-        if (shop.isBuying()) {
-            chatSheetPrinter.printLine(MsgUtil.getMessage("menu.this-shop-is-buying", p));
-        } else {
-            chatSheetPrinter.printLine(MsgUtil.getMessage("menu.this-shop-is-selling", p));
+        switch (shop.getShopType()) {
+            case SELLING:
+                chatSheetPrinter.printLine(MsgUtil.getMessage("menu.this-shop-is-selling", p));
+                break;
+            case BUYING:
+                chatSheetPrinter.printLine(MsgUtil.getMessage("menu.this-shop-is-buying", p));
+                break;
+            case DUALING:
+                chatSheetPrinter.printLine(MsgUtil.getMessage("menu.this-shop-is-dualing", p));
+                break;
         }
         printEnchantment(p, shop, chatSheetPrinter);
         if (items.getItemMeta() instanceof PotionMeta) {
@@ -1532,6 +1526,10 @@ public class MsgUtil {
                 }
             }
         }
+    }
+
+    public static void p(@Nullable CommandSender sender, @Nullable String key, @NotNull String... args) {
+        sendMessage(sender, key, args);
     }
 
     public static void sendMessage(@Nullable CommandSender sender, @Nullable String key, @NotNull String... args) {

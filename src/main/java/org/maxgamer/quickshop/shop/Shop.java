@@ -276,6 +276,11 @@ public interface Shop {
      */
     void setPrice(double paramDouble);
 
+
+    double getSellPrice();
+
+    void setSellPrice(double paramDouble);
+
     /**
      * Get shop remaining space.
      *

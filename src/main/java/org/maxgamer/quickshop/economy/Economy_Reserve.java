@@ -91,7 +91,7 @@
 //        try {
 //            return Objects.requireNonNull(reserve).addHoldings(name, new BigDecimal(amount));
 //        } catch (Exception throwable) {
-//            plugin.getSentryErrorReporter().ignoreThrow();
+//            
 //            plugin.getLogger().log(Level.WARNING, errorMsg, throwable);
 //            return false;
 //        }
@@ -115,7 +115,7 @@
 //        try {
 //            return Objects.requireNonNull(reserve).format(new BigDecimal(balance));
 //        } catch (Exception throwable) {
-//            plugin.getSentryErrorReporter().ignoreThrow();
+//            
 //            plugin.getLogger().log(Level.WARNING, errorMsg, throwable);
 //            return formatInternal(balance);
 //        }
@@ -138,7 +138,7 @@
 //        try {
 //            return Objects.requireNonNull(reserve).getHoldings(name).doubleValue();
 //        } catch (Exception throwable) {
-//            plugin.getSentryErrorReporter().ignoreThrow();
+//            
 //            plugin.getLogger().log(Level.WARNING, errorMsg, throwable);
 //            return 0.0;
 //        }
@@ -164,7 +164,7 @@
 //        try {
 //            return Objects.requireNonNull(reserve).transferHoldings(from, to, new BigDecimal(amount));
 //        } catch (Exception throwable) {
-//            plugin.getSentryErrorReporter().ignoreThrow();
+//            
 //            plugin.getLogger().log(Level.WARNING, errorMsg, throwable);
 //            return false;
 //        }
@@ -185,7 +185,7 @@
 //            }
 //            return Objects.requireNonNull(reserve).removeHoldings(name, new BigDecimal(amount));
 //        } catch (Exception throwable) {
-//            plugin.getSentryErrorReporter().ignoreThrow();
+//            
 //            plugin.getLogger().log(Level.WARNING, errorMsg, throwable);
 //            return false;
 //        }

@@ -227,10 +227,10 @@
     "freeze-hover": "&eToggle the shop's freeze status."
   },
   "tableformat": {
-    "full_line": "+---------------------------------------------------+",
-    "left_half_line": "+--------------------",
-    "right_half_line": "--------------------+",
-    "left_begin": "| "
+    "full_line": "",
+    "left_half_line": "",
+    "right_half_line": "",
+    "left_begin": " "
   },
   "booleanformat": {
     "success": "&a✔",

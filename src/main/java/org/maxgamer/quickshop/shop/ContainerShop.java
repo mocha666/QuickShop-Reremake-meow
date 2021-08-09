@@ -22,6 +22,7 @@ package org.maxgamer.quickshop.shop;
 import com.lishid.openinv.OpenInv;
 import io.papermc.lib.PaperLib;
 import lombok.EqualsAndHashCode;
+import lombok.Setter;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -80,6 +81,8 @@ public class ContainerShop implements Shop {
     private InventoryPreview inventoryPreview = null;
     private ShopModerator moderator;
     private double price;
+    @Setter
+    private double sellPrice;
     private ShopType shopType;
     private boolean unlimited;
     @EqualsAndHashCode.Exclude
@@ -127,6 +130,7 @@ public class ContainerShop implements Shop {
             @NotNull QuickShop plugin,
             @NotNull Location location,
             double price,
+            double sellPrice,
             @NotNull ItemStack item,
             @NotNull ShopModerator moderator,
             boolean unlimited,
@@ -135,6 +139,7 @@ public class ContainerShop implements Shop {
         Util.ensureThread(false);
         this.location = location;
         this.price = price;
+        this.sellPrice = sellPrice;
         this.moderator = moderator;
         this.item = item.clone();
         this.plugin = plugin;
@@ -626,6 +631,11 @@ public class ContainerShop implements Shop {
                 tradingStringKey = isStackingShop() ? "signs.stack-selling" : "signs.selling";
                 noRemainingStringKey = "signs.out-of-stock";
                 break;
+            case DUALING:
+                shopRemaining = getRemainingSpace();
+                tradingStringKey = "signs.dualing";
+                noRemainingStringKey = "";
+                break;
             default:
                 shopRemaining = 0;
                 tradingStringKey = "MissingKey for shop type:" + shopType;
@@ -649,12 +659,16 @@ public class ContainerShop implements Shop {
         lines[2] = MsgUtil.getMessageOfflinePlayer("signs.item", player, Util.getItemStackName(this.getItem()));
 
         //line 4
-        if (this.isStackingShop()) {
-            lines[3] = MsgUtil.getMessageOfflinePlayer("signs.stack-price", player,
-                    Util.format(this.getPrice(), this), Integer.toString(item.getAmount()),
-                    Util.getItemStackName(item));
+        if (this.shopType == ShopType.DUALING) {
+            lines[3] = MsgUtil.getMessageOfflinePlayer("signs.dual-price", player, Util.format(this.getSellPrice(), this), Util.format(this.getPrice(), this));
         } else {
-            lines[3] = MsgUtil.getMessageOfflinePlayer("signs.price", player, Util.format(this.getPrice(), this));
+            if (this.isStackingShop()) {
+                lines[3] = MsgUtil.getMessageOfflinePlayer("signs.stack-price", player,
+                        Util.format(this.getPrice(), this), Integer.toString(item.getAmount()),
+                        Util.getItemStackName(item));
+            } else {
+                lines[3] = MsgUtil.getMessageOfflinePlayer("signs.price", player, Util.format(this.getPrice(), this));
+            }
         }
 
         //New pattern for recognizing shop sign
@@ -732,7 +746,7 @@ public class ContainerShop implements Shop {
         try {
             plugin.getDatabaseHelper()
                     .updateShop(ShopModerator.serialize(this.moderator), this.getItem(),
-                            unlimited, shopType.toID(), this.getPrice(), x, y, z, world,
+                            unlimited, shopType.toID(), this.getPrice(), this.getSellPrice(), x, y, z, world,
                             this.saveExtraToYaml());
             this.dirty = false;
         } catch (Exception e) {
@@ -932,6 +946,12 @@ public class ContainerShop implements Shop {
         this.price = price;
         setSignText();
         update();
+    }
+
+
+    @Override
+    public double getSellPrice() {
+        return (sellPrice == 0D ? price : sellPrice);
     }
 
     /**

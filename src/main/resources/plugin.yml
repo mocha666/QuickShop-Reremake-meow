@@ -1,9 +1,11 @@
 name: ${project.name}
-main: ${package}.${project.name}
+main: org.maxgamer.quickshop.${project.name}
 version: ${project.version}
-authors: [ PotatoCraft Studio, Netherfoam, Timtower, KaiNoMood, Ghost_chu, Mgazul, TiaraRinne, sandtechnology, Starmism, Chris6ix, Rean Schwarzer ]
+authors: [ PotatoCraft Studio, Netherfoam, Timtower, KaiNoMood, Ghost_chu, Mgazul, TiaraRinne, sandtechnology, Starmism, Chris6ix, Rean Schwarzer , MeowRay]
 
 description: Economy Shops plugin
+depend:
+  - WdsjLib
 softdepend:
   - Vault
   - Reserve
@@ -39,6 +41,10 @@ commands:
     description: QuickShop command
     usage: /qs
     aliases: [ qsshop,qshop,quickshop ]
+  qsadmin:
+    permission: "quickshop.admin"
+    description: QuickShop command
+    aliases: [ quickshopadmin ]
 
 permissions:
   quickshop.player:
@@ -48,9 +54,10 @@ permissions:
       quickshop.use: true
       quickshop.create.sell: true
       quickshop.create.buy: true
+      quickshop.remove: true
       quickshop.create.stacks: true
-      quickshop.create.changeitem: true
-      quickshop.create.changeamount: true
+      quickshop.create.changeitem: false
+      quickshop.create.changeamount: false
       quickshop.create.changeprice: true
       quickshop.create.double: true
       quickshop.create.cmd: true

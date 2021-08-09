@@ -38,6 +38,12 @@ public class Info {
     private final boolean dirty;
     private ShopAction action;
     private ItemStack item;
+
+    @Nullable
+    public Shop getShop() {
+        return shop;
+    }
+
     private Shop shop;
 
     public Info(
